@@ -1,0 +1,273 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@custom-variant dark (&:is(.dark *));
+
+:root {
+  /* Updated to pure white theme inspired by design references */
+  --background: oklch(1 0 0); /* Pure white */
+  --foreground: oklch(0.25 0.02 240); /* Deep navy */
+  --card: oklch(0.99 0.005 180); /* Pure white with hint of cool */
+  --card-foreground: oklch(0.25 0.02 240);
+  --popover: oklch(0.99 0.005 180);
+  --popover-foreground: oklch(0.25 0.02 240);
+  --primary: oklch(0.65 0.15 280); /* Soft purple */
+  --primary-foreground: oklch(0.99 0.005 180);
+  --secondary: oklch(0.92 0.02 200); /* Light blue-gray */
+  --secondary-foreground: oklch(0.25 0.02 240);
+  --muted: oklch(0.95 0.01 160); /* Very light sage */
+  --muted-foreground: oklch(0.55 0.02 220);
+  --accent: oklch(0.85 0.08 320); /* Soft lavender */
+  --accent-foreground: oklch(0.25 0.02 240);
+  --destructive: oklch(0.65 0.15 15); /* Soft coral */
+  --destructive-foreground: oklch(0.99 0.005 180);
+  --border: oklch(0.9 0.02 180);
+  --input: oklch(0.96 0.01 180);
+  --ring: oklch(0.65 0.15 280);
+  --chart-1: oklch(0.7 0.12 320); /* Soft pink */
+  --chart-2: oklch(0.75 0.1 200); /* Soft blue */
+  --chart-3: oklch(0.8 0.08 120); /* Soft green */
+  --chart-4: oklch(0.72 0.11 60); /* Soft yellow */
+  --chart-5: oklch(0.68 0.13 15); /* Soft coral */
+  --radius: 0.75rem;
+  --sidebar: oklch(0.97 0.01 140);
+  --sidebar-foreground: oklch(0.25 0.02 240);
+  --sidebar-primary: oklch(0.65 0.15 280);
+  --sidebar-primary-foreground: oklch(0.99 0.005 180);
+  --sidebar-accent: oklch(0.92 0.02 200);
+  --sidebar-accent-foreground: oklch(0.25 0.02 240);
+  --sidebar-border: oklch(0.9 0.02 180);
+  --sidebar-ring: oklch(0.65 0.15 280);
+}
+
+.dark {
+  --background: oklch(0.12 0.02 240);
+  --foreground: oklch(0.95 0.01 120);
+  --card: oklch(0.15 0.02 240);
+  --card-foreground: oklch(0.95 0.01 120);
+  --popover: oklch(0.15 0.02 240);
+  --popover-foreground: oklch(0.95 0.01 120);
+  --primary: oklch(0.75 0.12 280);
+  --primary-foreground: oklch(0.12 0.02 240);
+  --secondary: oklch(0.2 0.02 220);
+  --secondary-foreground: oklch(0.95 0.01 120);
+  --muted: oklch(0.18 0.02 220);
+  --muted-foreground: oklch(0.7 0.02 180);
+  --accent: oklch(0.25 0.03 260);
+  --accent-foreground: oklch(0.95 0.01 120);
+  --destructive: oklch(0.6 0.18 15);
+  --destructive-foreground: oklch(0.95 0.01 120);
+  --border: oklch(0.2 0.02 220);
+  --input: oklch(0.18 0.02 220);
+  --ring: oklch(0.75 0.12 280);
+  --chart-1: oklch(0.75 0.12 320);
+  --chart-2: oklch(0.8 0.1 200);
+  --chart-3: oklch(0.85 0.08 120);
+  --chart-4: oklch(0.77 0.11 60);
+  --chart-5: oklch(0.73 0.13 15);
+  --sidebar: oklch(0.15 0.02 240);
+  --sidebar-foreground: oklch(0.95 0.01 120);
+  --sidebar-primary: oklch(0.75 0.12 280);
+  --sidebar-primary-foreground: oklch(0.12 0.02 240);
+  --sidebar-accent: oklch(0.2 0.02 220);
+  --sidebar-accent-foreground: oklch(0.95 0.01 120);
+  --sidebar-border: oklch(0.2 0.02 220);
+  --sidebar-ring: oklch(0.75 0.12 280);
+}
+
+@theme inline {
+  --font-sans: var(--font-geist-sans);
+  --font-mono: var(--font-geist-mono);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-chart-1: var(--chart-1);
+  --color-chart-2: var(--chart-2);
+  --color-chart-3: var(--chart-3);
+  --color-chart-4: var(--chart-4);
+  --color-chart-5: var(--chart-5);
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+}
+
+/* Added handwriting font import and custom styles for whiteboard */
+@import url("https://fonts.googleapis.com/css2?family=Kalam:wght@300;400;700&display=swap");
+
+.handwriting {
+  font-family: "Kalam", cursive;
+}
+
+.canvas-container {
+  cursor: crosshair;
+  outline: none; /* Remove default focus outline since we handle focus visually */
+}
+
+.canvas-container:focus-visible {
+  box-shadow: inset 0 0 0 2px var(--color-ring);
+}
+
+.canvas-container.panning {
+  cursor: grab;
+}
+
+.canvas-container.panning:active {
+  cursor: grabbing;
+}
+
+.canvas-container.selecting {
+  cursor: default;
+}
+
+.canvas-container.erasing {
+  cursor: none; /* Hide cursor when erasing, we show custom cursor */
+}
+
+.canvas-container.text-mode {
+  cursor: text;
+}
+
+.canvas-container.drawing {
+  cursor: none; /* Hide cursor when drawing for better precision */
+}
+
+.no-select {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+}
+
+/* Custom cursor for drawing precision */
+.drawing-cursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 1000;
+  border-radius: 50%;
+  border: 2px solid currentColor;
+  background: rgba(255, 255, 255, 0.8);
+  backdrop-filter: blur(2px);
+  transform: translate(-50%, -50%);
+  transition: opacity 0.1s ease;
+}
+
+/* Smooth animations for UI elements */
+.toolbar-button {
+  transition: all 0.15s ease;
+}
+
+.toolbar-button:hover {
+  transform: translateY(-1px);
+}
+
+.color-button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.color-button:hover {
+  transform: scale(1.1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.stroke-width-button {
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.stroke-width-button:hover {
+  transform: scale(1.1);
+}
+
+/* Loading and performance optimizations */
+.canvas-loading {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--color-muted);
+  color: var(--color-muted-foreground);
+}
+
+/* Accessibility improvements for screen readers */
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* High contrast mode support */
+@media (prefers-contrast: high) {
+  .canvas-container {
+    border: 2px solid var(--color-foreground);
+  }
+
+  .drawing-cursor {
+    border-width: 3px;
+    background: var(--color-background);
+  }
+}
+
+/* Reduced motion support */
+@media (prefers-reduced-motion: reduce) {
+  .toolbar-button,
+  .color-button,
+  .stroke-width-button,
+  .drawing-cursor {
+    transition: none;
+  }
+
+  .toolbar-button:hover,
+  .color-button:hover,
+  .stroke-width-button:hover {
+    transform: none;
+  }
+}
+
+/* Print styles for whiteboard */
+@media print {
+  .whiteboard-toolbar {
+    display: none;
+  }
+
+  .canvas-container {
+    border: 1px solid #000;
+  }
+}
