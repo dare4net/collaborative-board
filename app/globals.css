@@ -133,7 +133,7 @@
 }
 
 .canvas-container {
-  cursor: crosshair;
+  cursor: default;
   outline: none; /* Remove default focus outline since we handle focus visually */
 }
 
@@ -141,24 +141,50 @@
   box-shadow: inset 0 0 0 2px var(--color-ring);
 }
 
-.canvas-container.panning {
-  cursor: grab;
+/* Tool mode cursors */
+.canvas-container.select-mode {
+  cursor: pointer;
 }
 
-.canvas-container.panning:active {
-  cursor: grabbing;
-}
-
-.canvas-container.selecting {
-  cursor: default;
-}
-
-.canvas-container.erasing {
-  cursor: none; /* Hide cursor when erasing, we show custom cursor */
+.canvas-container.pen-mode {
+  cursor: crosshair;
 }
 
 .canvas-container.text-mode {
   cursor: text;
+}
+
+.canvas-container.pan-mode {
+  cursor: grab;
+}
+
+.canvas-container.shape-mode {
+  cursor: crosshair;
+}
+
+/* Interaction state cursors */
+.canvas-container.panning {
+  cursor: grabbing;
+}
+
+.canvas-container.selecting {
+  cursor: crosshair;
+}
+
+.canvas-container.dragging {
+  cursor: move;
+}
+
+.canvas-container.resizing {
+  cursor: crosshair;
+}
+
+.canvas-container.rotating {
+  cursor: grab;
+}
+
+.canvas-container.erasing {
+  cursor: none; /* Hide cursor when erasing, we show custom cursor */
 }
 
 .canvas-container.drawing {

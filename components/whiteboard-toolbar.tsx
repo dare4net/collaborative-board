@@ -2,6 +2,7 @@
 
 import { Button } from "@/components/ui/button"
 import { Separator } from "@/components/ui/separator"
+import React, { useState } from "react"
 import { useWhiteboardStore } from "@/hooks/use-whiteboard-store"
 import { FileManagerDialog } from "./file-manager-dialog"
 import { ExportDialog } from "./export-dialog"
@@ -44,6 +45,7 @@ const colors = [
 const strokeWidths = [2, 4, 6, 8, 12]
 
 export function WhiteboardToolbar() {
+  const [styleOpen, setStyleOpen] = useState(false)
   const {
     currentTool,
     setCurrentTool,
@@ -89,11 +91,11 @@ export function WhiteboardToolbar() {
   }
 
   return (
-    <div className="bg-card border-b border-border p-3 shadow-sm">
-      <div className="flex items-center gap-2 flex-wrap">
+    <div className="border-b border-border p-0 shadow-sm bg-[#eaf7ea]">{/* pastel green header */}
+      <div className="flex items-center gap-3 flex-wrap px-3 py-2">
         {/* Document Info */}
         {currentDocument && (
-          <div className="flex items-center gap-2 text-sm">
+          <div className="flex items-center gap-2 text-sm" title="Current document name">
             <FileText className="h-4 w-4 text-muted-foreground" />
             <span className="font-medium">{currentDocument.name}</span>
             {isModified && (
@@ -106,8 +108,8 @@ export function WhiteboardToolbar() {
 
         {currentDocument && <Separator orientation="vertical" className="h-6" />}
 
-        {/* File Operations */}
-        <div className="flex items-center gap-1">
+        {/* File */}
+        <div className="flex items-center gap-1" aria-label="File" title="File actions">
           <Button
             variant="ghost"
             size="sm"
@@ -140,8 +142,8 @@ export function WhiteboardToolbar() {
 
         <Separator orientation="vertical" className="h-6" />
 
-        {/* Selection Tool */}
-        <div className="flex items-center gap-1">
+        {/* Select */}
+        <div className="flex items-center gap-1" aria-label="Select" title="Selection tool">
           <Button
             variant={currentTool === "select" ? "default" : "ghost"}
             size="sm"
@@ -155,8 +157,8 @@ export function WhiteboardToolbar() {
 
         <Separator orientation="vertical" className="h-6" />
 
-        {/* Drawing Tools */}
-        <div className="flex items-center gap-1">
+        {/* Draw */}
+        <div className="flex items-center gap-1" aria-label="Draw" title="Drawing tools">
           <Button
             variant={currentTool === "pen" ? "default" : "ghost"}
             size="sm"
@@ -188,8 +190,8 @@ export function WhiteboardToolbar() {
 
         <Separator orientation="vertical" className="h-6" />
 
-        {/* Shape Tools */}
-        <div className="flex items-center gap-1">
+        {/* Shapes */}
+        <div className="flex items-center gap-1" aria-label="Shapes" title="Shape tools">
           <Button
             variant={currentTool === "rectangle" ? "default" : "ghost"}
             size="sm"
@@ -230,45 +232,17 @@ export function WhiteboardToolbar() {
 
         <Separator orientation="vertical" className="h-6" />
 
-        {/* Colors */}
-        <div className="flex items-center gap-1">
-          {colors.map((color) => (
-            <button
-              key={color}
-              onClick={() => setCurrentColor(color)}
-              className={`w-6 h-6 rounded-full border-2 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
-                currentColor === color ? "border-foreground shadow-md scale-110" : "border-border"
-              }`}
-              style={{ backgroundColor: color }}
-              aria-label={`Select ${color} color`}
-              title={`Color: ${color}`}
-            />
-          ))}
-        </div>
-
-        <Separator orientation="vertical" className="h-6" />
-
-        {/* Stroke Width */}
-        <div className="flex items-center gap-1">
-          {strokeWidths.map((width) => (
-            <button
-              key={width}
-              onClick={() => setCurrentStrokeWidth(width)}
-              className={`w-8 h-8 rounded-full border-2 flex items-center justify-center transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${
-                currentStrokeWidth === width ? "border-foreground bg-accent scale-110" : "border-border"
-              }`}
-              aria-label={`Select ${width}px stroke width`}
-              title={`Stroke width: ${width}px`}
-            >
-              <div className="rounded-full bg-foreground" style={{ width: `${width}px`, height: `${width}px` }} />
-            </button>
-          ))}
+        {/* Style (Dialog) */}
+        <div className="flex items-center gap-1" aria-label="Style" title="Open style dialog">
+          <Button variant="ghost" size="sm" className="h-9" onClick={() => setStyleOpen(true)} title="Style (Color & Width)">
+            Style
+          </Button>
         </div>
 
         <Separator orientation="vertical" className="h-6" />
 
         {/* History */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" aria-label="History" title="History controls">
           <Button
             variant="ghost"
             size="sm"
@@ -319,7 +293,7 @@ export function WhiteboardToolbar() {
         <Separator orientation="vertical" className="h-6" />
 
         {/* View Controls */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" aria-label="View" title="View controls">
           <Button variant="ghost" size="sm" onClick={handleZoomOut} className="h-9 w-9" title="Zoom Out">
             <ZoomOut className="h-4 w-4" />
           </Button>
@@ -337,20 +311,57 @@ export function WhiteboardToolbar() {
         <Separator orientation="vertical" className="h-6" />
 
         {/* Help */}
-        <div className="flex items-center gap-1">
+        <div className="flex items-center gap-1" aria-label="Help" title="Keyboard shortcuts">
           <KeyboardShortcutsHelp />
         </div>
-
-        {/* Selection Info */}
-        {selectedStrokes.length > 0 && (
-          <>
-            <Separator orientation="vertical" className="h-6" />
-            <span className="text-sm text-muted-foreground">
-              {selectedStrokes.length} item{selectedStrokes.length !== 1 ? "s" : ""} selected
-            </span>
-          </>
-        )}
+        
       </div>
+
+      {/* Style Dialog */}
+      {styleOpen && (
+        <div className="fixed inset-0 z-50 flex items-start justify-center">
+          <div className="absolute inset-0 bg-black/30" onClick={() => setStyleOpen(false)} />
+          <div className="relative mt-16 w-full max-w-md rounded-lg bg-white shadow-lg border border-border p-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold">Style</h3>
+              <button className="text-sm px-2 py-1 rounded hover:bg-muted" title="Close" onClick={() => setStyleOpen(false)}>Close</button>
+            </div>
+            <div className="space-y-4">
+              <div>
+                <div className="text-sm font-medium mb-2">Colors</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {colors.map((color) => (
+                    <button
+                      key={color}
+                      onClick={() => { setCurrentColor(color); setStyleOpen(false) }}
+                      className={`w-7 h-7 rounded-full border-2 transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${currentColor === color ? "border-foreground shadow-md scale-110" : "border-border"}`}
+                      style={{ backgroundColor: color }}
+                      aria-label={`Select ${color} color`}
+                      title={`Color: ${color}`}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div>
+                <div className="text-sm font-medium mb-2">Stroke width</div>
+                <div className="flex items-center gap-2 flex-wrap">
+                  {strokeWidths.map((width) => (
+                    <button
+                      key={width}
+                      onClick={() => { setCurrentStrokeWidth(width); setStyleOpen(false) }}
+                      className={`w-9 h-9 rounded-full border-2 flex items-center justify-center transition-all hover:scale-110 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 ${currentStrokeWidth === width ? "border-foreground bg-accent scale-110" : "border-border"}`}
+                      aria-label={`Select ${width}px stroke width`}
+                      title={`Stroke width: ${width}px`}
+                    >
+                      <div className="rounded-full bg-foreground" style={{ width: `${width}px`, height: `${width}px` }} />
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

@@ -2,38 +2,26 @@
 
 import { create } from "zustand"
 import { persist } from "zustand/middleware"
-
-export type Tool = "pen" | "eraser" | "pan" | "rectangle" | "ellipse" | "line" | "text" | "select"
-
-export interface Point {
-  x: number
-  y: number
-}
-
-export interface Stroke {
-  id: string
-  type: Tool
-  points: Point[]
-  color: string
-  strokeWidth: number
-  // Shape-specific properties
-  startPoint?: Point
-  endPoint?: Point
-  text?: string
-  fontSize?: number
-  // Selection and transformation
-  selected?: boolean
-  rotation?: number
-}
-
-export interface WhiteboardDocument {
-  id: string
-  name: string
-  strokes: Stroke[]
-  createdAt: number
-  updatedAt: number
-  thumbnail?: string
-}
+import type { 
+  Tool, 
+  Point, 
+  Stroke, 
+  WhiteboardDocument, 
+  SelectionBox, 
+  EditingText, 
+  CanvasState, 
+  SelectionState, 
+  HistoryState, 
+  DocumentState 
+} from "@/lib/types"
+import { StrokeUtils } from "@/lib/stroke-utils"
+import type { SelectionSlice } from "@/hooks/store/selection-slice"
+import { createSelectionSlice } from "@/hooks/store/selection-slice"
+import { createHistorySlice } from "@/hooks/store/history-slice"
+import { createTextSlice } from "@/hooks/store/text-slice"
+import { createDrawingSlice } from "@/hooks/store/drawing-slice"
+import { createDocumentSlice } from "@/hooks/store/document-slice"
+import { createCoreSlice } from "@/hooks/store/core-slice"
 
 interface WhiteboardState {
   // Current tool and settings
@@ -41,7 +29,7 @@ interface WhiteboardState {
   currentColor: string
   currentStrokeWidth: number
 
-  // Canvas state
+  // Canvas state (flat for compatibility)
   zoom: number
   panX: number
   panY: number
@@ -49,21 +37,21 @@ interface WhiteboardState {
   // Drawing state
   strokes: Stroke[]
   currentStroke: Stroke | null
-
-  // Shape drawing state
   isDrawingShape: boolean
   shapeStartPoint: Point | null
 
-  // Selection state
+  // Selection state (flat for compatibility)
   selectedStrokes: string[]
   selectionBox: { startX: number; startY: number; endX: number; endY: number } | null
   isSelecting: boolean
   isDragging: boolean
   dragStart: Point | null
   resizeHandle: string | null // 'nw', 'ne', 'sw', 'se', 'n', 's', 'e', 'w', 'rotate'
+  isRotating: boolean
+  rotateStart: Point | null
 
   // Text editing
-  editingText: { id: string; x: number; y: number; text: string } | null
+  editingText: EditingText | null
 
   // History
   history: Stroke[][]
@@ -106,12 +94,15 @@ interface WhiteboardState {
   startResize: (handle: string, point: Point) => void
   updateResize: (point: Point) => void
   finishResize: () => void
+  startRotate: (point: Point) => void
+  updateRotate: (point: Point) => void
+  finishRotate: () => void
 
   // Text actions
   startTextEdit: (point: Point) => void
   updateText: (text: string) => void
   finishTextEdit: () => void
-  setEditingText: (editing: { id: string; x: number; y: number; text: string } | null) => void
+  setEditingText: (editing: { id: string; x: number; y: number; text: string; mathMode: boolean } | null) => void
 
   eraseAtPoint: (x: number, y: number, radius: number) => void
 
@@ -131,34 +122,21 @@ interface WhiteboardState {
 
   // Clear
   clear: () => void
+
+  // Helper functions
 }
 
-export const useWhiteboardStore = create<WhiteboardState>()(
+export const useWhiteboardStore = create<WhiteboardState & SelectionSlice>()(
   persist(
     (set, get) => ({
       // Initial state
-      currentTool: "pen",
-      currentColor: "#2563eb",
-      currentStrokeWidth: 4,
-      zoom: 1,
-      panX: 0,
-      panY: 0,
-      strokes: [],
-      currentStroke: null,
-      isDrawingShape: false,
-      shapeStartPoint: null,
-      selectedStrokes: [],
-      selectionBox: null,
-      isSelecting: false,
-      isDragging: false,
-      dragStart: null,
-      resizeHandle: null,
-      editingText: null,
+      ...createCoreSlice(set as any, get as any, {} as any),
+      ...createDrawingSlice(set as any, get as any, {} as any),
+      ...createSelectionSlice(set as any, get as any, {} as any),
+      ...createTextSlice(set as any, get as any, {} as any),
       history: [[]],
       historyIndex: 0,
-      currentDocument: null,
-      savedDocuments: [],
-      isModified: false,
+      ...createDocumentSlice(set as any, get as any, {} as any),
 
       // Computed properties
       get canUndo() {
@@ -177,34 +155,37 @@ export const useWhiteboardStore = create<WhiteboardState>()(
           get().clearSelection()
         }
       },
-      setCurrentColor: (color) => set({ currentColor: color }),
+      setCurrentColor: (color) => {
+        const state = get()
+        // If in select mode and there are selected strokes, apply color to them and update history
+        if (state.currentTool === "select" && state.selectedStrokes.length > 0) {
+          const newStrokes = state.strokes.map((s) =>
+            state.selectedStrokes.includes(s.id) ? { ...s, color } : s,
+          )
+          const newHistory = state.history.slice(0, state.historyIndex + 1)
+          newHistory.push(newStrokes)
+
+          set({
+            currentColor: color,
+            strokes: newStrokes,
+            history: newHistory,
+            historyIndex: newHistory.length - 1,
+            isModified: true,
+          })
+        } else {
+          // Otherwise just set the current color for future strokes
+          set({ currentColor: color })
+        }
+      },
       setCurrentStrokeWidth: (width) => set({ currentStrokeWidth: width }),
       setZoom: (zoom) => set({ zoom }),
       setPan: (x, y) => set({ panX: x, panY: y }),
       resetView: () => set({ zoom: 1, panX: 0, panY: 0 }),
-
-      // Drawing actions
-      addStroke: (stroke) => {
-        const state = get()
-        const newStrokes = [...state.strokes, stroke]
-        const newHistory = state.history.slice(0, state.historyIndex + 1)
-        newHistory.push(newStrokes)
-
-        set({
-          strokes: newStrokes,
-          history: newHistory,
-          historyIndex: newHistory.length - 1,
-          isModified: true,
-        })
-      },
-
-      setCurrentStroke: (stroke) => set({ currentStroke: stroke }),
-
       finishStroke: () => {
         const state = get()
         if (state.currentStroke) {
           state.addStroke(state.currentStroke)
-          set({ currentStroke: null })
+          set({ currentStroke: null, currentTool: 'select' })
         }
       },
 
@@ -246,6 +227,7 @@ export const useWhiteboardStore = create<WhiteboardState>()(
             currentStroke: null,
             isDrawingShape: false,
             shapeStartPoint: null,
+            currentTool: 'select',
           })
         }
       },
@@ -331,8 +313,9 @@ export const useWhiteboardStore = create<WhiteboardState>()(
           const selectedIds = state.strokes
             .filter((stroke) => {
               if (stroke.type === "text" && stroke.points.length > 0) {
-                const point = stroke.points[0]
-                return point.x >= minX && point.x <= maxX && point.y >= minY && point.y <= maxY
+                // Use calculated bounds for accurate selection overlap
+                const b = (StrokeUtils as any).calculateBounds(stroke)
+                return b.minX <= maxX && b.maxX >= minX && b.minY <= maxY && b.maxY >= minY
               } else if (stroke.startPoint && stroke.endPoint) {
                 const strokeMinX = Math.min(stroke.startPoint.x, stroke.endPoint.x)
                 const strokeMaxX = Math.max(stroke.startPoint.x, stroke.endPoint.x)
@@ -428,48 +411,86 @@ export const useWhiteboardStore = create<WhiteboardState>()(
         if (state.resizeHandle && state.dragStart && state.selectedStrokes.length === 1) {
           const strokeId = state.selectedStrokes[0]
           const stroke = state.strokes.find((s) => s.id === strokeId)
-          if (!stroke || !stroke.startPoint || !stroke.endPoint) return
+          if (!stroke) return
 
           const deltaX = point.x - state.dragStart.x
           const deltaY = point.y - state.dragStart.y
 
-          const newStartPoint = { ...stroke.startPoint }
-          const newEndPoint = { ...stroke.endPoint }
+          // Get current bounds
+          const bounds = (StrokeUtils as any).calculateBounds(stroke)
+          const { minX, minY, maxX, maxY } = bounds
 
-          switch (state.resizeHandle) {
-            case "nw":
-              newStartPoint.x += deltaX
-              newStartPoint.y += deltaY
-              break
-            case "ne":
-              newEndPoint.x += deltaX
-              newStartPoint.y += deltaY
-              break
-            case "sw":
-              newStartPoint.x += deltaX
-              newEndPoint.y += deltaY
-              break
-            case "se":
-              newEndPoint.x += deltaX
-              newEndPoint.y += deltaY
-              break
-            case "n":
-              newStartPoint.y += deltaY
-              break
-            case "s":
-              newEndPoint.y += deltaY
-              break
-            case "w":
-              newStartPoint.x += deltaX
-              break
-            case "e":
-              newEndPoint.x += deltaX
-              break
+          let newStrokes = state.strokes
+
+          if (stroke.type === "text") {
+            // For text, we can only resize by changing fontSize
+            const currentFontSize = stroke.fontSize || 16
+            let newFontSize = currentFontSize
+
+            switch (state.resizeHandle) {
+              case "se":
+                newFontSize = Math.max(12, currentFontSize + deltaY * 0.8)
+                break
+              case "sw":
+                newFontSize = Math.max(12, currentFontSize + deltaY * 0.8)
+                break
+              case "ne":
+                newFontSize = Math.max(12, currentFontSize - deltaY * 0.8)
+                break
+              case "nw":
+                newFontSize = Math.max(12, currentFontSize - deltaY * 0.8)
+                break
+              case "s":
+                newFontSize = Math.max(12, currentFontSize + deltaY * 0.8)
+                break
+              case "n":
+                newFontSize = Math.max(12, currentFontSize - deltaY * 0.8)
+                break
+            }
+
+            newStrokes = state.strokes.map((s) =>
+              s.id === strokeId ? { ...s, fontSize: newFontSize } : s,
+            )
+          } else if (stroke.startPoint && stroke.endPoint) {
+            // For shapes, resize by adjusting start/end points
+            const newStartPoint = { ...stroke.startPoint }
+            const newEndPoint = { ...stroke.endPoint }
+
+            switch (state.resizeHandle) {
+              case "nw":
+                newStartPoint.x += deltaX
+                newStartPoint.y += deltaY
+                break
+              case "ne":
+                newEndPoint.x += deltaX
+                newStartPoint.y += deltaY
+                break
+              case "sw":
+                newStartPoint.x += deltaX
+                newEndPoint.y += deltaY
+                break
+              case "se":
+                newEndPoint.x += deltaX
+                newEndPoint.y += deltaY
+                break
+              case "n":
+                newStartPoint.y += deltaY
+                break
+              case "s":
+                newEndPoint.y += deltaY
+                break
+              case "w":
+                newStartPoint.x += deltaX
+                break
+              case "e":
+                newEndPoint.x += deltaX
+                break
+            }
+
+            newStrokes = state.strokes.map((s) =>
+              s.id === strokeId ? { ...s, startPoint: newStartPoint, endPoint: newEndPoint } : s,
+            )
           }
-
-          const newStrokes = state.strokes.map((s) =>
-            s.id === strokeId ? { ...s, startPoint: newStartPoint, endPoint: newEndPoint } : s,
-          )
 
           set({
             strokes: newStrokes,
@@ -494,6 +515,56 @@ export const useWhiteboardStore = create<WhiteboardState>()(
         }
       },
 
+      startRotate: (point) => {
+        set({
+          isRotating: true,
+          rotateStart: point,
+        })
+      },
+
+      updateRotate: (point) => {
+        const state = get()
+        if (state.isRotating && state.rotateStart && state.selectedStrokes.length === 1) {
+          const strokeId = state.selectedStrokes[0]
+          const stroke = state.strokes.find((s) => s.id === strokeId)
+          if (!stroke) return
+
+          // Calculate bounds and center
+          const bounds = (StrokeUtils as any).calculateBounds(stroke)
+          const centerX = (bounds.minX + bounds.maxX) / 2
+          const centerY = (bounds.minY + bounds.maxY) / 2
+          
+          const startAngle = Math.atan2(state.rotateStart.y - centerY, state.rotateStart.x - centerX)
+          const currentAngle = Math.atan2(point.y - centerY, point.x - centerX)
+          const rotation = currentAngle - startAngle
+
+          const newStrokes = state.strokes.map((s) =>
+            s.id === strokeId ? { ...s, rotation: (s.rotation || 0) + rotation } : s,
+          )
+
+          set({
+            strokes: newStrokes,
+            rotateStart: point,
+          })
+        }
+      },
+
+      finishRotate: () => {
+        const state = get()
+        if (state.isRotating) {
+          const newHistory = state.history.slice(0, state.historyIndex + 1)
+          newHistory.push([...state.strokes])
+
+          set({
+            isRotating: false,
+            rotateStart: null,
+            history: newHistory,
+            historyIndex: newHistory.length - 1,
+            isModified: true,
+          })
+        }
+      },
+
       // Text actions
       startTextEdit: (point) => {
         set({
@@ -502,6 +573,7 @@ export const useWhiteboardStore = create<WhiteboardState>()(
             x: point.x,
             y: point.y,
             text: "",
+            mathMode: false,
           },
         })
       },
@@ -509,28 +581,83 @@ export const useWhiteboardStore = create<WhiteboardState>()(
       updateText: (text) => {
         const state = get()
         if (state.editingText) {
-          set({
-            editingText: {
-              ...state.editingText,
-              text,
-            },
-          })
+          // Update editingText buffer
+          set({ editingText: { ...state.editingText, text } })
+
+          // Live-commit the text to the underlying stroke on each keystroke
+          const existing = state.strokes.find((s) => s.id === state.editingText!.id)
+          if (existing && existing.type === "text") {
+            // Update existing text stroke without altering preserved styles
+            const newStrokes = state.strokes.map((s) =>
+              s.id === existing.id ? { ...s, text } : s,
+            )
+            set({ strokes: newStrokes, isModified: true })
+          } else {
+            // If new text and we have non-empty content, create the stroke immediately
+            if (text.length > 0) {
+              const textStroke: Stroke = {
+                id: state.editingText.id,
+                type: "text",
+                points: [{ x: state.editingText.x, y: state.editingText.y }],
+                color: state.currentColor,
+                strokeWidth: state.currentStrokeWidth,
+                text,
+                fontSize: Math.max(16, state.currentStrokeWidth * 4),
+                mathMode: state.editingText.mathMode,
+              }
+              set({ strokes: [...state.strokes, textStroke], isModified: true })
+            }
+          }
         }
       },
 
       finishTextEdit: () => {
         const state = get()
         if (state.editingText && state.editingText.text.trim()) {
-          const textStroke: Stroke = {
-            id: state.editingText.id,
-            type: "text",
-            points: [{ x: state.editingText.x, y: state.editingText.y }],
-            color: state.currentColor,
-            strokeWidth: state.currentStrokeWidth,
-            text: state.editingText.text,
-            fontSize: Math.max(16, state.currentStrokeWidth * 4),
+          // Check if we're editing an existing text stroke
+          const existingStroke = state.strokes.find(s => s.id === state.editingText!.id)
+          
+          if (existingStroke && existingStroke.type === "text") {
+            // Update existing text stroke, preserving original fontSize and color to prevent visual jump
+            const preservedFontSize = existingStroke.fontSize ?? Math.max(16, state.currentStrokeWidth * 4)
+            const preservedColor = existingStroke.color ?? state.currentColor
+            const newStrokes = state.strokes.map(stroke =>
+              stroke.id === state.editingText!.id
+                ? {
+                    ...stroke,
+                    text: state.editingText!.text,
+                    fontSize: preservedFontSize,
+                    color: preservedColor,
+                    mathMode: state.editingText!.mathMode,
+                  }
+                : stroke
+            )
+            
+            const newHistory = state.history.slice(0, state.historyIndex + 1)
+            newHistory.push(newStrokes)
+            
+            set({
+              strokes: newStrokes,
+              history: newHistory,
+              historyIndex: newHistory.length - 1,
+              isModified: true,
+              currentTool: 'select',
+            })
+          } else {
+            // Create new text stroke
+            const textStroke: Stroke = {
+              id: state.editingText.id,
+              type: "text",
+              points: [{ x: state.editingText.x, y: state.editingText.y }],
+              color: state.currentColor,
+              strokeWidth: state.currentStrokeWidth,
+              text: state.editingText.text,
+              fontSize: Math.max(16, state.currentStrokeWidth * 4),
+              mathMode: state.editingText.mathMode,
+            }
+            state.addStroke(textStroke)
+            set({ currentTool: 'select' })
           }
-          state.addStroke(textStroke)
         }
         set({ editingText: null })
       },
@@ -576,30 +703,7 @@ export const useWhiteboardStore = create<WhiteboardState>()(
         }
       },
 
-      // History actions
-      undo: () => {
-        const state = get()
-        if (state.canUndo) {
-          const newIndex = state.historyIndex - 1
-          set({
-            strokes: state.history[newIndex],
-            historyIndex: newIndex,
-            isModified: true,
-          })
-        }
-      },
-
-      redo: () => {
-        const state = get()
-        if (state.canRedo) {
-          const newIndex = state.historyIndex + 1
-          set({
-            strokes: state.history[newIndex],
-            historyIndex: newIndex,
-            isModified: true,
-          })
-        }
-      },
+      ...createHistorySlice(set as any, get as any, {} as any),
 
       // File management actions
       newDocument: () => {
@@ -637,7 +741,7 @@ export const useWhiteboardStore = create<WhiteboardState>()(
             name: documentName,
             strokes: [...state.strokes],
             updatedAt: now,
-            thumbnail: state.generateThumbnail(),
+            thumbnail: state.generateThumbnail() || undefined,
           }
 
           const updatedDocuments = state.savedDocuments.map((doc) =>
@@ -657,7 +761,7 @@ export const useWhiteboardStore = create<WhiteboardState>()(
             strokes: [...state.strokes],
             createdAt: now,
             updatedAt: now,
-            thumbnail: state.generateThumbnail(),
+            thumbnail: state.generateThumbnail() || undefined,
           }
 
           set({
@@ -835,8 +939,66 @@ export const useWhiteboardStore = create<WhiteboardState>()(
           isDragging: false,
           dragStart: null,
           resizeHandle: null,
+          isRotating: false,
+          rotateStart: null,
           isModified: true,
         })
+      },
+
+      // Helper function to calculate bounds for a stroke
+      calculateStrokeBounds: (stroke: Stroke) => {
+        if (stroke.type === "text" && stroke.points.length > 0) {
+          const point = stroke.points[0]
+          const fontSize = stroke.fontSize || 16
+          const text = stroke.text || ""
+          
+          // Create a temporary canvas to measure text accurately
+          const canvas = document.createElement("canvas")
+          const ctx = canvas.getContext("2d")
+          if (ctx) {
+            ctx.font = `${fontSize}px "Kalam", cursive`
+            const metrics = ctx.measureText(text)
+            const textWidth = metrics.width
+            const textHeight = fontSize * 1.2 // Approximate line height
+            
+            return {
+              minX: point.x - 5, // Add small padding
+              minY: point.y - textHeight + 5,
+              maxX: point.x + Math.max(textWidth, 20) + 5, // Ensure minimum width
+              maxY: point.y + 5,
+            }
+          }
+          
+          // Fallback calculation
+          return {
+            minX: point.x - 5,
+            minY: point.y - fontSize + 5,
+            maxX: point.x + Math.max(text.length * fontSize * 0.6, 20) + 5,
+            maxY: point.y + 5,
+          }
+        } else if (stroke.startPoint && stroke.endPoint) {
+          return {
+            minX: Math.min(stroke.startPoint.x, stroke.endPoint.x),
+            minY: Math.min(stroke.startPoint.y, stroke.endPoint.y),
+            maxX: Math.max(stroke.startPoint.x, stroke.endPoint.x),
+            maxY: Math.max(stroke.startPoint.y, stroke.endPoint.y),
+          }
+        } else if (stroke.points.length > 0) {
+          let minX = Number.POSITIVE_INFINITY
+          let minY = Number.POSITIVE_INFINITY
+          let maxX = Number.NEGATIVE_INFINITY
+          let maxY = Number.NEGATIVE_INFINITY
+
+          stroke.points.forEach((point) => {
+            minX = Math.min(minX, point.x)
+            minY = Math.min(minY, point.y)
+            maxX = Math.max(maxX, point.x)
+            maxY = Math.max(maxY, point.y)
+          })
+
+          return { minX, minY, maxX, maxY }
+        }
+        return { minX: 0, minY: 0, maxX: 0, maxY: 0 }
       },
     }),
     {
